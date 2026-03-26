@@ -1,0 +1,49 @@
+name: Daily Stock Run
+
+on:
+  schedule:
+    - cron: "15 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  run-stock-bot:
+    name: Run Stock Pipeline
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Create .env from GitHub secret
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.ENV_FILE }}" ]; then
+            echo "ENV_FILE secret is required for scheduled/manual runs."
+            exit 1
+          fi
+
+          printf "%s" "${{ secrets.ENV_FILE }}" > .env
+
+      - name: Trigger the /run API
+        run: |
+          uv run python - <<'PY'
+          from fastapi.testclient import TestClient
+          from app.main import app
+
+          client = TestClient(app)
+          response = client.get("/run")
+          print("status_code:", response.status_code)
+          print(response.text)
+          response.raise_for_status()
+          PY

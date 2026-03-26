@@ -41,17 +41,16 @@ uv run run.py
 
 ## GitHub Actions
 
-This repo includes a GitHub Actions pipeline at `.github/workflows/ci-cd.yml`.
+This repo includes a GitHub Actions automation at `.github/workflows/daily-stock-run.yml`.
 
-- CI runs on every push to `main`, every pull request, and manual workflow runs.
-- CD is optional and triggers only if you add a repository secret named `DEPLOY_WEBHOOK_URL`.
+- It runs every day at 08:45 IST.
+- It also supports manual runs from the Actions tab.
+- It writes a `.env` file from the `ENV_FILE` repository secret.
+- It invokes the FastAPI `/run` route, which executes the stock pipeline and sends email notifications.
 
-Recommended GitHub repository secrets:
+Required GitHub repository secret:
 
-- `ENV_FILE`: optional full `.env` file content for workflow smoke tests
-- `DEPLOY_WEBHOOK_URL`: optional deploy hook URL from your hosting platform
-
-If `ENV_FILE` is not set, the workflow falls back to `.env.example`.
+- `ENV_FILE`: the full contents of your production `.env` file
 
 ## Notes
 
