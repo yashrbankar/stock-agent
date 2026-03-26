@@ -1,4 +1,5 @@
 import logging
+import os
 
 from app.analysis.gemini_client import GeminiAnalyzer
 from app.data.fundamentals import FundamentalsClient
@@ -66,6 +67,8 @@ class StockService:
     def _build_report(self, result: PipelineRunResult) -> str:
         lines = [
             "Daily Stock Bot Report",
+            "",
+            f"Run revision: {os.getenv('GITHUB_SHA', 'local')[:7]}",
             "",
             f"Candidates scanned: {len(result.candidates)}",
             f"After filters: {len(result.filtered)}",
