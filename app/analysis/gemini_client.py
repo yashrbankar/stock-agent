@@ -1,4 +1,3 @@
-import json
 import logging
 from typing import Literal
 
@@ -46,49 +45,68 @@ class GeminiAnalyzer:
         }
         system_instruction = load_prompt("system_prompt")
         user_prompt = render_prompt("analysis_prompt", payload)
-
-        response = self.client.models.generate_content(
-            model=self.settings.gemini_model,
-            contents=user_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.2,
-                response_mime_type="application/json",
-                response_schema=AnalysisPayload,
-                tools=[types.Tool(google_search=types.GoogleSearch())],
+        prompts = [
+            user_prompt,
+            (
+                f"{user_prompt}\n\n"
+                "The stock symbol and company have already been provided above. "
+                "Do not ask for them again. Return the JSON object now."
             ),
-        )
-        text = response.text or ""
-        parsed = _parse_json_block(text)
-        return AnalysisResult(
-            symbol=stock.symbol,
-            company_name=stock.company_name,
-            reason=parsed.get("reason", "No reason returned."),
-            risks=_coerce_list(parsed.get("risks")),
-            opportunity=parsed.get("opportunity", "No opportunity returned."),
-            verdict=parsed.get("verdict", "WATCHLIST"),
-            raw_text=text,
-        )
+        ]
+
+        last_result: AnalysisResult | None = None
+        for prompt in prompts:
+            response = self.client.models.generate_content(
+                model=self.settings.gemini_model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=0.2,
+                    response_mime_type="application/json",
+                    response_schema=AnalysisPayload,
+                    tools=[types.Tool(google_search=types.GoogleSearch())],
+                ),
+            )
+            text = response.text or ""
+            parsed = _parse_json_block(text)
+            result = AnalysisResult(
+                symbol=stock.symbol,
+                company_name=stock.company_name,
+                reason=parsed.get("reason", "No reason returned."),
+                risks=_coerce_list(parsed.get("risks")),
+                opportunity=parsed.get("opportunity", "No opportunity returned."),
+                verdict=parsed.get("verdict", "WATCHLIST"),
+                raw_text=text,
+            )
+            last_result = result
+            if _is_analysis_usable(result):
+                return result
+
+            logger.warning("Gemini returned a low-quality analysis for %s; retrying once.", stock.symbol)
+
+        assert last_result is not None
+        return last_result
 
     def summarize(self, analyses: list[AnalysisResult]) -> str:
-        if not self.client:
-            raise RuntimeError("GEMINI_API_KEY is not configured")
+        if not analyses:
+            return "No qualifying stocks today."
 
-        system_instruction = load_prompt("system_prompt")
-        summary_prompt = render_prompt(
-            "summary_prompt",
-            {"analysis_blob": json.dumps([item.model_dump() for item in analyses], indent=2)},
+        watchlist = [item.symbol for item in analyses if item.verdict == "WATCHLIST"]
+        buy = [item.symbol for item in analyses if item.verdict == "BUY"]
+        avoid = [item.symbol for item in analyses if item.verdict == "AVOID"]
+
+        takeaway = (
+            f"{len(analyses)} stock(s) passed the quantitative screen. "
+            f"BUY: {len(buy)}, WATCHLIST: {len(watchlist)}, AVOID: {len(avoid)}."
         )
-        response = self.client.models.generate_content(
-            model=self.settings.gemini_model,
-            contents=summary_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.2,
-                tools=[types.Tool(google_search=types.GoogleSearch())],
-            ),
+        watchlist_line = ", ".join(buy + watchlist) if (buy or watchlist) else "None"
+        avoid_line = ", ".join(avoid) if avoid else "None"
+
+        return (
+            f"{takeaway}\n\n"
+            f"Top watchlist names: {watchlist_line}\n"
+            f"Avoid for now: {avoid_line}"
         )
-        return response.text or "No summary generated."
 
 
 def _parse_json_block(text: str) -> dict:
@@ -118,3 +136,18 @@ def _fmt(value: float | None) -> str:
 
 def _fmt_pct(value: float | None) -> str:
     return "N/A" if value is None else f"{value * 100:.2f}%"
+
+
+def _is_analysis_usable(result: AnalysisResult) -> bool:
+    bad_phrases = (
+        "please provide the stock symbol",
+        "please provide the company name",
+        "which stock would you like",
+        "i need the stock symbol",
+    )
+    content = " ".join([result.reason, result.opportunity, result.raw_text]).lower()
+    if any(phrase in content for phrase in bad_phrases):
+        return False
+    if len(result.reason.strip()) < 25:
+        return False
+    return True
