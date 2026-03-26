@@ -63,7 +63,13 @@ jobs:
 
     steps:
       - name: Trigger deploy webhook
-        if: ${{ secrets.DEPLOY_WEBHOOK_URL != '' }}
         env:
           DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
-        run: curl -fsSL -X POST "$DEPLOY_WEBHOOK_URL"
+        shell: bash
+        run: |
+          if [ -z "$DEPLOY_WEBHOOK_URL" ]; then
+            echo "DEPLOY_WEBHOOK_URL is not set. Skipping deploy."
+            exit 0
+          fi
+
+          curl -fsSL -X POST "$DEPLOY_WEBHOOK_URL"
