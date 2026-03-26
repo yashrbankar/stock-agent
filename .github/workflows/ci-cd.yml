@@ -59,10 +59,11 @@ jobs:
     name: Deploy Via Webhook
     runs-on: ubuntu-latest
     needs: ci
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && secrets.DEPLOY_WEBHOOK_URL != ''
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
 
     steps:
       - name: Trigger deploy webhook
+        if: ${{ secrets.DEPLOY_WEBHOOK_URL != '' }}
         env:
           DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
         run: curl -fsSL -X POST "$DEPLOY_WEBHOOK_URL"
