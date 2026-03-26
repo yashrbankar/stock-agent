@@ -1,0 +1,9 @@
+Summarize the following stock analyses for an investor email.
+
+Return plain text with:
+1. A one-paragraph market takeaway
+2. A short "top watchlist names" section
+3. A short "avoid for now" section
+
+Analyses:
+{analysis_blob}

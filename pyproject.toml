@@ -1,0 +1,33 @@
+[project]
+name = "stock-bot"
+version = "0.1.0"
+description = "Prompt-driven stock screening and analysis service built with FastAPI and Gemini."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "apscheduler>=3.10.4",
+  "fastapi>=0.115.0",
+  "google-genai>=1.30.0",
+  "httpx>=0.27.0",
+  "pydantic>=2.8.0",
+  "pydantic-settings>=2.4.0",
+  "python-dotenv>=1.0.1",
+  "tenacity>=9.0.0",
+  "uvicorn[standard]>=0.30.0",
+  "yfinance>=0.2.54",
+]
+
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.6.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
