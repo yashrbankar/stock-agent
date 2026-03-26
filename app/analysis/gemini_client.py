@@ -1,8 +1,10 @@
 import json
 import logging
+from typing import Literal
 
 from google import genai
 from google.genai import types
+from pydantic import BaseModel, Field
 
 from app.analysis.prompt_loader import load_prompt, render_prompt
 from app.config import get_settings
@@ -10,6 +12,13 @@ from app.data.models import AnalysisResult, StockSnapshot
 
 
 logger = logging.getLogger(__name__)
+
+
+class AnalysisPayload(BaseModel):
+    reason: str = Field(description="Why the stock is weak or falling right now.")
+    risks: list[str] = Field(default_factory=list, description="Key business or balance-sheet risks.")
+    opportunity: str = Field(description="Potential upside if the weakness is temporary.")
+    verdict: Literal["BUY", "WATCHLIST", "AVOID"]
 
 
 class GeminiAnalyzer:
@@ -44,6 +53,8 @@ class GeminiAnalyzer:
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
                 temperature=0.2,
+                response_mime_type="application/json",
+                response_schema=AnalysisPayload,
                 tools=[types.Tool(google_search=types.GoogleSearch())],
             ),
         )

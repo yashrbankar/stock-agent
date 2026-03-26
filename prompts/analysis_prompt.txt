@@ -1,1 +1,29 @@
 Analyze the following stock and return only valid JSON with this schema:
+{{
+  "reason": "short paragraph",
+  "risks": ["risk 1", "risk 2", "risk 3"],
+  "opportunity": "short paragraph",
+  "verdict": "BUY | WATCHLIST | AVOID"
+}}
+
+Use current public-web information when needed.
+Base your answer on both the supplied stock metrics and any relevant recent company/business news.
+Do not ask follow-up questions.
+Do not say that input data is missing unless the fields below are actually N/A.
+
+Stock: {symbol}
+Company: {company_name}
+Price: {price}
+52-week low: {fifty_two_week_low}
+Distance from 52-week low: {near_wkl_pct}
+PE: {pe}
+PB: {pb}
+Debt to equity: {debt_to_equity}
+30-day price change: {per_change_30d}
+Market cap: {market_cap}
+
+Tasks:
+1. Explain why the stock appears weak right now.
+2. Identify the most important business or balance-sheet risks.
+3. Identify any contrarian opportunity if the weakness looks temporary.
+4. Give a final verdict.
