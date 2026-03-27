@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     gemini_api_key: str = ""
+    gemini_api_key_2: str = ""
+    gemini_api_key_3: str = ""
     gemini_model: str = "gemini-2.5-flash"
 
     nse_index_name: str = "NIFTY 500"
@@ -47,6 +49,10 @@ class Settings(BaseSettings):
     prompts_dir: Path = BASE_DIR / "prompts"
     data_dir: Path = BASE_DIR / "data"
     logs_dir: Path = BASE_DIR / "logs"
+
+    @property
+    def gemini_api_keys(self) -> list[str]:
+        return [key for key in [self.gemini_api_key, self.gemini_api_key_2, self.gemini_api_key_3] if key]
 
 
 @lru_cache

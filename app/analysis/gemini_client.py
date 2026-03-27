@@ -2,7 +2,7 @@ import json
 import logging
 
 from google import genai
-from google.genai import types
+from google.genai import errors, types
 
 from app.analysis.prompt_loader import load_prompt, render_prompt
 from app.config import get_settings
@@ -16,11 +16,11 @@ class GeminiAnalyzer:
     def __init__(self) -> None:
         settings = get_settings()
         self.settings = settings
-        self.client = genai.Client(api_key=settings.gemini_api_key) if settings.gemini_api_key else None
+        self.clients = [genai.Client(api_key=key) for key in settings.gemini_api_keys]
 
     def analyze(self, stock: StockSnapshot) -> AnalysisResult:
-        if not self.client:
-            raise RuntimeError("GEMINI_API_KEY is not configured")
+        if not self.clients:
+            raise RuntimeError("No Gemini API key is configured")
 
         payload = {
             "symbol": stock.symbol,
@@ -48,16 +48,10 @@ class GeminiAnalyzer:
 
         last_result: AnalysisResult | None = None
         for prompt in prompts:
-            response = self.client.models.generate_content(
-                model=self.settings.gemini_model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    temperature=0.2,
-                    tools=[types.Tool(google_search=types.GoogleSearch())],
-                ),
+            text = self._generate_text(
+                prompt=prompt,
+                system_instruction=system_instruction,
             )
-            text = response.text or ""
             parsed = _parse_json_block(text)
             result = AnalysisResult(
                 symbol=stock.symbol,
@@ -97,6 +91,33 @@ class GeminiAnalyzer:
             f"Top watchlist names: {watchlist_line}\n"
             f"Avoid for now: {avoid_line}"
         )
+
+    def _generate_text(self, *, prompt: str, system_instruction: str) -> str:
+        last_error: Exception | None = None
+
+        for index, client in enumerate(self.clients, start=1):
+            try:
+                response = client.models.generate_content(
+                    model=self.settings.gemini_model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        temperature=0.2,
+                        tools=[types.Tool(google_search=types.GoogleSearch())],
+                    ),
+                )
+                logger.info("Gemini request succeeded using API key #%s", index)
+                return response.text or ""
+            except errors.ClientError as exc:
+                last_error = exc
+                if exc.status_code == 429:
+                    logger.warning("Gemini key #%s hit quota. Trying next key if available.", index)
+                    continue
+                raise
+
+        if last_error:
+            raise last_error
+        raise RuntimeError("No Gemini client is available")
 
 
 def _parse_json_block(text: str) -> dict:
