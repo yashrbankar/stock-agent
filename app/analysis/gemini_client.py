@@ -110,7 +110,9 @@ class GeminiAnalyzer:
                 return response.text or ""
             except errors.ClientError as exc:
                 last_error = exc
-                if exc.status_code == 429:
+                status = str(getattr(exc, "status", "")).upper()
+                message = str(getattr(exc, "message", "")).upper()
+                if status == "RESOURCE_EXHAUSTED" or "RESOURCE_EXHAUSTED" in message:
                     logger.warning("Gemini key #%s hit quota. Trying next key if available.", index)
                     continue
                 raise
