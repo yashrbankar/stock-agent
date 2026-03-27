@@ -28,21 +28,42 @@ class NSEClient:
     def fetch_equity_symbols(self) -> list[dict]:
         with httpx.Client(timeout=20.0, headers=self.headers, follow_redirects=True) as client:
             client.get(self.BASE_URL)
-            response = client.get(
-                f"{self.BASE_URL}/api/equity-stockIndices",
-                params={"index": self.settings.nse_index_name},
-            )
+            if self.settings.nse_index_name.upper() == "ALL NSE":
+                response = client.get(
+                    f"{self.BASE_URL}/api/market-data-pre-open",
+                    params={"key": "ALL"},
+                )
+            else:
+                response = client.get(
+                    f"{self.BASE_URL}/api/equity-stockIndices",
+                    params={"index": self.settings.nse_index_name},
+                )
             response.raise_for_status()
             payload = response.json()
 
         records = payload.get("data", [])
         cleaned = []
-        for item in records:
-            symbol = item.get("symbol")
-            name = item.get("meta", {}).get("companyName") or item.get("identifier") or symbol
-            if not symbol or symbol in {"NIFTY 500"}:
-                continue
-            cleaned.append({"symbol": symbol, "company_name": name, "payload": item})
+        if self.settings.nse_index_name.upper() == "ALL NSE":
+            for item in records:
+                metadata = item.get("metadata", {})
+                symbol = metadata.get("symbol")
+                series = metadata.get("series")
+                if not symbol or series != "EQ" or "-RE" in symbol or symbol.endswith("-BZ"):
+                    continue
+                cleaned.append(
+                    {
+                        "symbol": symbol,
+                        "company_name": metadata.get("symbol"),
+                        "payload": metadata,
+                    }
+                )
+        else:
+            for item in records:
+                symbol = item.get("symbol")
+                name = item.get("meta", {}).get("companyName") or item.get("identifier") or symbol
+                if not symbol or symbol == self.settings.nse_index_name:
+                    continue
+                cleaned.append({"symbol": symbol, "company_name": name, "payload": item})
 
         logger.info("Fetched %s NSE symbols for %s", len(cleaned), self.settings.nse_index_name)
         return cleaned[: self.settings.screen_limit]

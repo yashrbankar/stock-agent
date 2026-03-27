@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     gemini_api_key_3: str = ""
     gemini_model: str = "gemini-2.5-flash"
 
-    nse_index_name: str = "NIFTY 500"
+    nse_index_name: str = "ALL NSE"
     screen_limit: int = 40
     lookback_days: int = 370
     filter_near_wkl_pct: float = 5.0

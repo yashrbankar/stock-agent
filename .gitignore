@@ -3,5 +3,5 @@
 .vscode/
 __pycache__/
 *.pyc
-logs/
-data/
+/logs/
+/data/
