@@ -1,0 +1,21 @@
+Analyze the following stocks and return only a valid JSON array.
+
+Each array item must use this schema:
+[
+  {{
+    "symbol": "stock symbol",
+    "reason": "short paragraph",
+    "risks": ["risk 1", "risk 2", "risk 3"],
+    "opportunity": "short paragraph",
+    "verdict": "BUY | WATCHLIST | AVOID"
+  }}
+]
+
+Use current public-web information when needed.
+Base each answer on both the supplied stock metrics and any relevant recent company or business news.
+Do not ask follow-up questions.
+Do not omit any stock from the list.
+Return exactly one JSON object per stock symbol.
+
+Stocks:
+{stocks_blob}

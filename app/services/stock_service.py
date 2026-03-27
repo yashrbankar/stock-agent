@@ -55,7 +55,9 @@ class StockService:
         gemini_failure_reason = ""
         if filtered:
             try:
-                analyses = [self.analyzer.analyze(stock) for stock in filtered]
+                analyses = []
+                for batch in _chunked(filtered, self.settings.gemini_batch_size):
+                    analyses.extend(self.analyzer.analyze_batch(batch))
                 summary = self.analyzer.summarize(analyses) if analyses else "No qualifying stocks today."
             except Exception as exc:
                 gemini_failed = True
@@ -187,3 +189,7 @@ class StockService:
 
     def _fmt_percent(self, value: float | None) -> str:
         return "N/A" if value is None else f"{value * 100:.2f}%"
+
+
+def _chunked(items: list[StockSnapshot], chunk_size: int) -> list[list[StockSnapshot]]:
+    return [items[index : index + chunk_size] for index in range(0, len(items), chunk_size)]

@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     gemini_api_key_2: str = ""
     gemini_api_key_3: str = ""
     gemini_model: str = "gemini-2.5-flash"
+    gemini_batch_size: int = Field(default=5, ge=1, le=5)
 
     nse_index_name: str = "ALL NSE"
     screen_limit: int = 40

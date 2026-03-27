@@ -19,57 +19,51 @@ class GeminiAnalyzer:
         self.clients = [genai.Client(api_key=key) for key in settings.gemini_api_keys]
 
     def analyze(self, stock: StockSnapshot) -> AnalysisResult:
+        return self.analyze_batch([stock])[0]
+
+    def analyze_batch(self, stocks: list[StockSnapshot]) -> list[AnalysisResult]:
         if not self.clients:
             raise RuntimeError("No Gemini API key is configured")
+        if not stocks:
+            return []
+        if len(stocks) > self.settings.gemini_batch_size:
+            raise ValueError(
+                f"Batch size {len(stocks)} exceeds configured Gemini batch size "
+                f"{self.settings.gemini_batch_size}"
+            )
 
-        payload = {
-            "symbol": stock.symbol,
-            "company_name": stock.company_name,
-            "price": _fmt(stock.price),
-            "fifty_two_week_low": _fmt(stock.fifty_two_week_low),
-            "near_wkl_pct": _fmt(stock.near_wkl_pct),
-            "pe": _fmt(stock.pe),
-            "pb": _fmt(stock.pb),
-            "debt": _fmt(stock.debt_to_equity),
-            "debt_to_equity": _fmt(stock.debt_to_equity),
-            "per_change_30d": _fmt_pct(stock.thirty_day_change),
-            "market_cap": _fmt(stock.market_cap),
-        }
         system_instruction = load_prompt("system_prompt")
-        user_prompt = render_prompt("analysis_prompt", payload)
+        user_prompt = render_prompt(
+            "batch_analysis_prompt",
+            {"stocks_blob": json.dumps([_stock_payload(stock) for stock in stocks], indent=2)},
+        )
         prompts = [
             user_prompt,
             (
                 f"{user_prompt}\n\n"
-                "The stock symbol and company have already been provided above. "
-                "Do not ask for them again. Return the JSON object now."
+                "The stocks, symbols, and metrics have already been provided above. "
+                "Do not ask for them again. Return only the JSON array now."
             ),
         ]
 
-        last_result: AnalysisResult | None = None
+        last_results: list[AnalysisResult] | None = None
         for prompt in prompts:
             text = self._generate_text(
                 prompt=prompt,
                 system_instruction=system_instruction,
             )
-            parsed = _parse_json_block(text)
-            result = AnalysisResult(
-                symbol=stock.symbol,
-                company_name=stock.company_name,
-                reason=parsed.get("reason", "No reason returned."),
-                risks=_coerce_list(parsed.get("risks")),
-                opportunity=parsed.get("opportunity", "No opportunity returned."),
-                verdict=parsed.get("verdict", "WATCHLIST"),
-                raw_text=text,
+            results = _parse_batch_results(text, stocks)
+            last_results = results
+            if len(results) == len(stocks) and all(_is_analysis_usable(result) for result in results):
+                return results
+
+            logger.warning(
+                "Gemini returned a low-quality batch analysis for %s stock(s); retrying once.",
+                len(stocks),
             )
-            last_result = result
-            if _is_analysis_usable(result):
-                return result
 
-            logger.warning("Gemini returned a low-quality analysis for %s; retrying once.", stock.symbol)
-
-        assert last_result is not None
-        return last_result
+        assert last_results is not None
+        return last_results
 
     def summarize(self, analyses: list[AnalysisResult]) -> str:
         if not analyses:
@@ -135,6 +129,48 @@ def _parse_json_block(text: str) -> dict:
         return {"reason": stripped, "risks": [], "opportunity": "", "verdict": "WATCHLIST"}
 
 
+def _parse_batch_results(text: str, stocks: list[StockSnapshot]) -> list[AnalysisResult]:
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        if len(lines) >= 3:
+            stripped = "\n".join(lines[1:-1]).strip()
+
+    try:
+        parsed = json.loads(stripped)
+    except json.JSONDecodeError:
+        logger.warning("Gemini returned non-JSON batch output; using fallback results.")
+        return [_fallback_analysis(stock, stripped) for stock in stocks]
+
+    if not isinstance(parsed, list):
+        logger.warning("Gemini batch output was not a JSON array; using fallback results.")
+        return [_fallback_analysis(stock, stripped) for stock in stocks]
+
+    items_by_symbol = {}
+    for item in parsed:
+        if isinstance(item, dict) and item.get("symbol"):
+            items_by_symbol[str(item["symbol"]).upper()] = item
+
+    results: list[AnalysisResult] = []
+    for stock in stocks:
+        item = items_by_symbol.get(stock.symbol.upper())
+        if not item:
+            results.append(_fallback_analysis(stock, stripped))
+            continue
+        results.append(
+            AnalysisResult(
+                symbol=stock.symbol,
+                company_name=stock.company_name,
+                reason=str(item.get("reason", "No reason returned.")),
+                risks=_coerce_list(item.get("risks")),
+                opportunity=str(item.get("opportunity", "No opportunity returned.")),
+                verdict=str(item.get("verdict", "WATCHLIST")),
+                raw_text=text,
+            )
+        )
+    return results
+
+
 def _coerce_list(value: object) -> list[str]:
     if isinstance(value, list):
         return [str(item) for item in value]
@@ -149,6 +185,33 @@ def _fmt(value: float | None) -> str:
 
 def _fmt_pct(value: float | None) -> str:
     return "N/A" if value is None else f"{value * 100:.2f}%"
+
+
+def _stock_payload(stock: StockSnapshot) -> dict[str, str]:
+    return {
+        "symbol": stock.symbol,
+        "company_name": stock.company_name,
+        "price": _fmt(stock.price),
+        "fifty_two_week_low": _fmt(stock.fifty_two_week_low),
+        "near_wkl_pct": _fmt_pct(stock.near_wkl_pct),
+        "pe": _fmt(stock.pe),
+        "pb": _fmt(stock.pb),
+        "debt_to_equity": _fmt(stock.debt_to_equity),
+        "per_change_30d": _fmt_pct(stock.thirty_day_change),
+        "market_cap": _fmt(stock.market_cap),
+    }
+
+
+def _fallback_analysis(stock: StockSnapshot, raw_text: str) -> AnalysisResult:
+    return AnalysisResult(
+        symbol=stock.symbol,
+        company_name=stock.company_name,
+        reason=raw_text or "No reason returned.",
+        risks=[],
+        opportunity="",
+        verdict="WATCHLIST",
+        raw_text=raw_text,
+    )
 
 
 def _is_analysis_usable(result: AnalysisResult) -> bool:
