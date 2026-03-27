@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     screen_limit: int = 40
     lookback_days: int = 370
     filter_near_wkl_pct: float = 5.0
+    bucket_1_near_wkl_pct: float = 5.0
+    bucket_2_near_wkl_pct: float = 10.0
+    bucket_3_near_wkl_pct: float = 20.0
     filter_max_pe: float = 25.0
     filter_max_pb: float = 3.0
     filter_max_debt_to_equity: float = 1.0
