@@ -2,7 +2,7 @@ name: Daily Stock Run
 
 on:
   schedule:
-    - cron: "56 2 * * *"
+    - cron: "30 23 * * *"
   workflow_dispatch:
 
 jobs:
