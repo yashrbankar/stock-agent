@@ -12,10 +12,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_name: str = "Stock Bot"
-    app_host: str = "127.0.0.1"
+    app_host: str = "0.0.0.0"
     app_port: int = 8000
     app_env: str = "development"
     log_level: str = "INFO"
+    enable_scheduler: bool = True
 
     gemini_api_key: str = ""
     gemini_api_key_2: str = ""

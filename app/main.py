@@ -16,7 +16,7 @@ scheduler = create_scheduler(stock_service)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    if not scheduler.running:
+    if settings.enable_scheduler and not scheduler.running:
         scheduler.start()
     try:
         yield

@@ -39,6 +39,48 @@ uv run run.py
 - `http://127.0.0.1:8000/stocks`
 - `http://127.0.0.1:8000/run`
 
+## Docker Quick Start
+
+1. Copy the environment template:
+
+```bash
+cp .env.example .env
+```
+
+2. Build the image:
+
+```bash
+docker compose build
+```
+
+3. Start the container:
+
+```bash
+docker compose up
+```
+
+4. Open:
+
+- `http://127.0.0.1:8000/health`
+- `http://127.0.0.1:8000/stocks`
+- `http://127.0.0.1:8000/run`
+
+Notes:
+
+- `ENABLE_SCHEDULER=false` is the default for Docker so the web container does not run the daily job.
+- For production on Azure, keep the web app container focused on serving HTTP and run the schedule separately.
+- To stop the stack, use `docker compose down`.
+
+## Azure Container Direction
+
+Recommended production flow:
+
+1. Build this repo into a Docker image.
+2. Push the image to Azure Container Registry.
+3. Deploy the image to Azure Container Apps or Azure App Service for Containers.
+4. Configure secrets as environment variables in Azure.
+5. Run the daily stock job outside the web container using GitHub Actions or an Azure-native scheduled job.
+
 ## GitHub Actions
 
 This repo includes a GitHub Actions automation at `.github/workflows/daily-stock-run.yml`.
