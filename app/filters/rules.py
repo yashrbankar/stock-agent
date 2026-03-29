@@ -7,7 +7,7 @@ def filter_candidates(stocks: list[StockSnapshot]) -> list[StockSnapshot]:
     filtered: list[StockSnapshot] = []
 
     for stock in stocks:
-        if stock.near_wkl_pct is None or stock.near_wkl_pct > _as_ratio(settings.filter_near_wkl_pct):
+        if stock.near_wkl_pct is None or stock.near_wkl_pct > _as_ratio(settings.bucket_2_near_wkl_pct):
             continue
         if stock.pe is None or stock.pe >= settings.filter_max_pe:
             continue
@@ -33,7 +33,12 @@ def select_near_low_stocks(
     selected = [
         stock
         for stock in stocks
-        if stock.near_wkl_pct is not None and min_ratio < stock.near_wkl_pct <= max_ratio
+        if stock.near_wkl_pct is not None
+        and (
+            min_ratio <= stock.near_wkl_pct <= max_ratio
+            if min_threshold == 0
+            else min_ratio < stock.near_wkl_pct <= max_ratio
+        )
     ]
     return sorted(selected, key=lambda stock: stock.near_wkl_pct if stock.near_wkl_pct is not None else 999)
 

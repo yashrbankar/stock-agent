@@ -32,7 +32,6 @@ class PipelineRunResult(BaseModel):
     filtered: list[StockSnapshot]
     near_low_5_pct: list[StockSnapshot]
     near_low_10_pct: list[StockSnapshot]
-    near_low_20_pct: list[StockSnapshot]
     analyses: list[AnalysisResult]
     summary: str
     gemini_failed: bool = False

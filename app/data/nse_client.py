@@ -65,5 +65,15 @@ class NSEClient:
                     continue
                 cleaned.append({"symbol": symbol, "company_name": name, "payload": item})
 
+            cleaned.sort(key=lambda record: _near_wkl_sort_key(record["payload"]))
+
         logger.info("Fetched %s NSE symbols for %s", len(cleaned), self.settings.nse_index_name)
-        return cleaned[: self.settings.screen_limit]
+        return cleaned
+
+
+def _near_wkl_sort_key(payload: dict) -> float:
+    value = payload.get("nearWKL")
+    try:
+        return abs(float(value))
+    except (TypeError, ValueError):
+        return 999999.0

@@ -25,7 +25,6 @@ class Settings(BaseSettings):
     gemini_batch_size: int = Field(default=5, ge=1, le=5)
 
     nse_index_name: str = "NIFTY TOTAL MARKET"
-    screen_limit: int = 40
     lookback_days: int = 370
     filter_near_wkl_pct: float = 5.0
     bucket_1_near_wkl_pct: float = 5.0

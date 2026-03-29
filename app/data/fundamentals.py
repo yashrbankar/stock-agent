@@ -31,7 +31,7 @@ class FundamentalsClient:
         month_anchor = close_series.iloc[-21] if len(close_series) > 21 else close_series.iloc[0]
         thirty_day_change = float((current_price - month_anchor) / month_anchor) if month_anchor else None
         near_wkl_pct = (
-            float(((current_price - fifty_two_week_low) / fifty_two_week_low) * 100)
+            float((current_price - fifty_two_week_low) / fifty_two_week_low)
             if fifty_two_week_low
             else None
         )
@@ -46,7 +46,7 @@ class FundamentalsClient:
             company_name=company_name,
             price=current_price,
             fifty_two_week_low=fifty_two_week_low,
-            near_wkl_pct=nse_near_wkl if nse_near_wkl is not None else near_wkl_pct,
+            near_wkl_pct=abs(nse_near_wkl) if nse_near_wkl is not None else near_wkl_pct,
             pe=_float_or_none(info.get("trailingPE")),
             pb=_float_or_none(info.get("priceToBook")),
             debt_to_equity=debt_to_equity,
