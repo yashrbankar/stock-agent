@@ -1,39 +1,33 @@
-from typing import Any
-
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class StockSnapshot(BaseModel):
     symbol: str
     company_name: str
-    industry: str | None = None
+    segment: str
     price: float | None = None
     fifty_two_week_low: float | None = None
     near_wkl_pct: float | None = None
-    day_change: float | None = None
-    one_year_change: float | None = None
-    traded_value: float | None = None
-    traded_volume: float | None = None
-    thirty_day_change: float | None = None
-    source_meta: dict[str, Any] = Field(default_factory=dict)
+    pe_ratio: float | None = None
 
 
 class AnalysisResult(BaseModel):
     symbol: str
     company_name: str
-    reason: str
+    segment: str
+    pe_ratio: float | None = None
+    business_summary: str
+    valuation_view: str
+    profitability_view: str
+    shareholding_view: str
+    key_points: list[str]
     risks: list[str]
-    opportunity: str
-    verdict: str
     raw_text: str
 
 
 class PipelineRunResult(BaseModel):
-    candidates: list[StockSnapshot]
-    filtered: list[StockSnapshot]
-    near_low_5_pct: list[StockSnapshot]
-    near_low_10_pct: list[StockSnapshot]
+    scanned_count: int
+    near_low_stocks: list[StockSnapshot]
     analyses: list[AnalysisResult]
-    summary: str
     gemini_failed: bool = False
     gemini_failure_reason: str = ""

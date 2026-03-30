@@ -1,8 +1,9 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Annotated
 
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import AliasChoices, Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -23,14 +24,16 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.5-flash"
     gemini_batch_size: int = Field(default=5, ge=1, le=5)
 
-    nse_index_name: str = "NIFTY TOTAL MARKET"
-    filter_near_wkl_pct: float = 5.0
-    bucket_1_near_wkl_pct: float = 5.0
-    bucket_2_near_wkl_pct: float = 10.0
-    bucket_3_near_wkl_pct: float = 20.0
-    filter_max_30d_change: float = -0.01
-    filter_min_365d_change: float = -0.35
-    filter_min_traded_value_cr: float = 10.0
+    nse_index_names: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: [
+            "NIFTY 100",
+            "NIFTY MIDCAP 100",
+            "NIFTY SMALLCAP 100",
+        ],
+        validation_alias=AliasChoices("NSE_INDEX_NAMES", "NSE_INDEX_NAME"),
+    )
+    near_52_week_low_pct: float = 5.0
+    segment_top_n: int = Field(default=20, ge=1, le=50)
 
     smtp_host: str = ""
     smtp_port: int = 587
@@ -58,6 +61,17 @@ class Settings(BaseSettings):
             for key in [self.gemini_api_key, self.gemini_api_key_2, self.gemini_api_key_3]
             if key
         ]
+
+    @field_validator("nse_index_names", mode="before")
+    @classmethod
+    def _parse_nse_index_names(cls, value: str | list[str]) -> list[str]:
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
+
+    @property
+    def nse_universe_label(self) -> str:
+        return ", ".join(self.nse_index_names)
 
 
 @lru_cache

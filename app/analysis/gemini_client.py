@@ -16,6 +16,7 @@ class GeminiAnalyzer:
         settings = get_settings()
         self.settings = settings
         self.clients = [genai.Client(api_key=key) for key in settings.gemini_api_keys]
+        self.exhausted_client_indexes: set[int] = set()
 
     def analyze(self, stock: StockSnapshot) -> AnalysisResult:
         return self.analyze_batch([stock])[0]
@@ -66,31 +67,14 @@ class GeminiAnalyzer:
         assert last_results is not None
         return last_results
 
-    def summarize(self, analyses: list[AnalysisResult]) -> str:
-        if not analyses:
-            return "No qualifying stocks today."
-
-        watchlist = [item.symbol for item in analyses if item.verdict == "WATCHLIST"]
-        buy = [item.symbol for item in analyses if item.verdict == "BUY"]
-        avoid = [item.symbol for item in analyses if item.verdict == "AVOID"]
-
-        takeaway = (
-            f"{len(analyses)} stock(s) passed the quantitative screen. "
-            f"BUY: {len(buy)}, WATCHLIST: {len(watchlist)}, AVOID: {len(avoid)}."
-        )
-        watchlist_line = ", ".join(buy + watchlist) if (buy or watchlist) else "None"
-        avoid_line = ", ".join(avoid) if avoid else "None"
-
-        return (
-            f"{takeaway}\n\n"
-            f"Top watchlist names: {watchlist_line}\n"
-            f"Avoid for now: {avoid_line}"
-        )
-
     def _generate_text(self, *, prompt: str, system_instruction: str) -> str:
         last_error: Exception | None = None
 
         for index, client in enumerate(self.clients, start=1):
+            if index in self.exhausted_client_indexes:
+                logger.info("Skipping Gemini API key #%s because it already hit quota.", index)
+                continue
+
             try:
                 response = client.models.generate_content(
                     model=self.settings.gemini_model,
@@ -107,7 +91,8 @@ class GeminiAnalyzer:
                 last_error = exc
                 status = str(getattr(exc, "status", "")).upper()
                 message = str(getattr(exc, "message", "")).upper()
-                if status == "RESOURCE_EXHAUSTED" or "RESOURCE_EXHAUSTED" in message:
+                if _is_quota_error(status, message):
+                    self.exhausted_client_indexes.add(index)
                     logger.warning("Gemini key #%s hit quota. Trying next key if available.", index)
                     continue
                 raise
@@ -127,7 +112,14 @@ def _parse_json_block(text: str) -> dict:
         return json.loads(stripped)
     except json.JSONDecodeError:
         logger.warning("Gemini returned non-JSON output; falling back to text parsing.")
-        return {"reason": stripped, "risks": [], "opportunity": "", "verdict": "WATCHLIST"}
+        return {
+            "business_summary": stripped,
+            "valuation_view": "",
+            "profitability_view": "",
+            "shareholding_view": "",
+            "key_points": [],
+            "risks": [],
+        }
 
 
 def _parse_batch_results(text: str, stocks: list[StockSnapshot]) -> list[AnalysisResult]:
@@ -162,10 +154,18 @@ def _parse_batch_results(text: str, stocks: list[StockSnapshot]) -> list[Analysi
             AnalysisResult(
                 symbol=stock.symbol,
                 company_name=stock.company_name,
-                reason=str(item.get("reason", "No reason returned.")),
+                segment=stock.segment,
+                pe_ratio=stock.pe_ratio,
+                business_summary=str(item.get("business_summary", "No summary returned.")),
+                valuation_view=str(item.get("valuation_view", "No valuation view returned.")),
+                profitability_view=str(
+                    item.get("profitability_view", "No profitability view returned.")
+                ),
+                shareholding_view=str(
+                    item.get("shareholding_view", "No shareholding view returned.")
+                ),
+                key_points=_coerce_list(item.get("key_points")),
                 risks=_coerce_list(item.get("risks")),
-                opportunity=str(item.get("opportunity", "No opportunity returned.")),
-                verdict=str(item.get("verdict", "WATCHLIST")),
                 raw_text=text,
             )
         )
@@ -192,30 +192,25 @@ def _stock_payload(stock: StockSnapshot) -> dict[str, str]:
     return {
         "symbol": stock.symbol,
         "company_name": stock.company_name,
-        "industry": stock.industry or "N/A",
+        "pe_ratio": _fmt(stock.pe_ratio),
         "price": _fmt(stock.price),
         "fifty_two_week_low": _fmt(stock.fifty_two_week_low),
         "near_wkl_pct": _fmt_pct(stock.near_wkl_pct),
-        "day_change": _fmt_pct(stock.day_change),
-        "per_change_30d": _fmt_pct(stock.thirty_day_change),
-        "per_change_365d": _fmt_pct(stock.one_year_change),
-        "traded_value_cr": _fmt_cr(stock.traded_value),
-        "traded_volume": _fmt(stock.traded_volume),
     }
-
-
-def _fmt_cr(value: float | None) -> str:
-    return "N/A" if value is None else f"{value / 10_000_000:.2f}"
 
 
 def _fallback_analysis(stock: StockSnapshot, raw_text: str) -> AnalysisResult:
     return AnalysisResult(
         symbol=stock.symbol,
         company_name=stock.company_name,
-        reason=raw_text or "No reason returned.",
+        segment=stock.segment,
+        pe_ratio=stock.pe_ratio,
+        business_summary=raw_text or "No summary returned.",
+        valuation_view="",
+        profitability_view="",
+        shareholding_view="",
+        key_points=[],
         risks=[],
-        opportunity="",
-        verdict="WATCHLIST",
         raw_text=raw_text,
     )
 
@@ -227,9 +222,26 @@ def _is_analysis_usable(result: AnalysisResult) -> bool:
         "which stock would you like",
         "i need the stock symbol",
     )
-    content = " ".join([result.reason, result.opportunity, result.raw_text]).lower()
+    content = " ".join(
+        [
+            result.business_summary,
+            result.valuation_view,
+            result.profitability_view,
+            result.shareholding_view,
+            result.raw_text,
+        ]
+    ).lower()
     if any(phrase in content for phrase in bad_phrases):
         return False
-    if len(result.reason.strip()) < 25:
+    if len(result.business_summary.strip()) < 25:
         return False
     return True
+
+
+def _is_quota_error(status: str, message: str) -> bool:
+    return (
+        status in {"RESOURCE_EXHAUSTED", "429"}
+        or "RESOURCE_EXHAUSTED" in message
+        or "TOO MANY REQUESTS" in message
+        or "QUOTA" in message
+    )

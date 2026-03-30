@@ -96,11 +96,9 @@ Required GitHub repository secret:
 
 ## Screening Logic
 
-- Scans the configured NSE universe
-- Shortlists stocks within the configured distance from their 52-week low
-- Prioritizes names with weak recent price action, acceptable 1-year drawdown, and sufficient liquidity
-- Skips any optional metric that is not present instead of rejecting the stock
-- Sends only the strongest screened names to Gemini for deeper qualitative analysis
+- Scans only the configured NSE indices, deduplicated into one universe
+- Keeps only stocks that are within the configured distance from their 52-week low
+- Sends every near-low stock to Gemini for a simple fundamental breakdown
 
 ## Notes
 

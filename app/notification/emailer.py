@@ -12,7 +12,7 @@ class EmailNotifier:
     def __init__(self) -> None:
         self.settings = get_settings()
 
-    def send(self, subject: str, body: str) -> None:
+    def send(self, subject: str, body: str, *, html_body: str | None = None) -> None:
         if not all(
             [
                 self.settings.smtp_host,
@@ -30,6 +30,8 @@ class EmailNotifier:
         message["From"] = self.settings.email_from
         message["To"] = self.settings.email_to
         message.set_content(body)
+        if html_body:
+            message.add_alternative(html_body, subtype="html")
 
         with smtplib.SMTP(self.settings.smtp_host, self.settings.smtp_port, timeout=30) as server:
             server.starttls()
