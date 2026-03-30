@@ -191,6 +191,15 @@ class StockService:
         if not analysis_sections:
             analysis_sections.append("<p class='empty'>No Gemini analyses were produced for this run.</p>")
 
+        rule_text = (
+            f"Within {self.settings.near_52_week_low_pct:.1f}% of 52-week low, "
+            f"positive NSE P/E only, top {self.settings.segment_top_n} by lowest P/E"
+        )
+        stock_sections_html = "".join(stock_sections)
+        if not stock_sections_html:
+            stock_sections_html = "<p class='empty'>No stocks in this section.</p>"
+        analysis_sections_html = "".join(analysis_sections)
+
         return (
             "<!DOCTYPE html>"
             "<html><head><meta charset='utf-8'>"
@@ -227,13 +236,13 @@ class StockService:
             f"{self._render_meta_card('Universe', self.settings.nse_universe_label)}"
             f"{self._render_meta_card('Stocks Scanned', str(result.scanned_count))}"
             f"{self._render_meta_card('Final Stocks Shown', str(len(result.near_low_stocks)))}"
-            f"{self._render_meta_card('Rule', f'Within {self.settings.near_52_week_low_pct:.1f}% of 52-week low, positive NSE P/E only, top {self.settings.segment_top_n} by lowest P/E')}"
+            f"{self._render_meta_card('Rule', rule_text)}"
             "</div>"
             "<h2>Fundamental Breakdown By Segment</h2>"
             f"{gemini_status}"
-            f"{''.join(analysis_sections)}"
+            f"{analysis_sections_html}"
             "<h2>Stocks By Segment</h2>"
-            f"{''.join(stock_sections) if stock_sections else '<p class=\"empty\">No stocks in this section.</p>'}"
+            f"{stock_sections_html}"
             "</div></body></html>"
         )
 
