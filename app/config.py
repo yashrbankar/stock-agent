@@ -47,8 +47,8 @@ class Settings(BaseSettings):
     twilio_from: str = ""
     twilio_to: str = ""
 
-    schedule_hour: int = Field(default=8, ge=0, le=23)
-    schedule_minute: int = Field(default=30, ge=0, le=59)
+    schedule_hour: int = Field(default=4, ge=0, le=23)
+    schedule_minute: int = Field(default=0, ge=0, le=59)
 
     prompts_dir: Path = BASE_DIR / "prompts"
     data_dir: Path = BASE_DIR / "data"

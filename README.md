@@ -9,7 +9,7 @@ by email.
 - FastAPI endpoints for health, stock inspection, and manual runs
 - Prompt files stored outside code in `/prompts`
 - Gemini analysis with `google_search`
-- Daily scheduler at 08:30
+- Daily scheduler at 04:00 IST
 - SMTP email delivery with optional WhatsApp hook placeholder
 - `uv`-friendly project setup
 
@@ -85,7 +85,7 @@ Recommended production flow:
 
 This repo includes a GitHub Actions automation at `.github/workflows/daily-stock-run.yml`.
 
-- It runs every day at 08:45 IST.
+- It runs every day at 04:00 IST.
 - It also supports manual runs from the Actions tab.
 - It writes a `.env` file from the `ENV_FILE` repository secret.
 - It invokes the FastAPI `/run` route, which executes the stock pipeline and sends email notifications.

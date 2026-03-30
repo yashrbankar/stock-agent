@@ -2,7 +2,7 @@ name: Daily Stock Run
 
 on:
   schedule:
-    - cron: "30 1 * * *"
+    - cron: "30 22 * * *"
   workflow_dispatch:
 
 jobs:
@@ -37,15 +37,35 @@ jobs:
           fi
 
           printf "%s" "${{ secrets.ENV_FILE }}" > .env
+          printf "\nENABLE_SCHEDULER=false\nAPP_HOST=127.0.0.1\nAPP_PORT=8000\n" >> .env
 
-      - name: Run stock pipeline
+      - name: Start API
         run: |
-          uv run python - <<'PY'
-          from app.services.stock_service import StockService
+          uv run python run.py > app.log 2>&1 &
+          echo $! > app.pid
 
-          result = StockService().run_pipeline(notify=True)
-          print("Candidates scanned:", len(result.candidates))
-          print("After filters:", len(result.filtered))
-          print("Summary:")
-          print(result.summary)
-          PY
+      - name: Wait for API
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8000/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API did not become ready in time."
+          cat app.log
+          exit 1
+
+      - name: Trigger stock pipeline
+        run: |
+          curl -fsS http://127.0.0.1:8000/run
+
+      - name: Stop API
+        if: always()
+        run: |
+          if [ -f app.pid ]; then
+            kill "$(cat app.pid)" || true
+          fi
+          if [ -f app.log ]; then
+            cat app.log || true
+          fi
