@@ -56,11 +56,12 @@ class Settings(BaseSettings):
 
     @property
     def gemini_api_keys(self) -> list[str]:
-        return [
-            key
-            for key in [self.gemini_api_key, self.gemini_api_key_2, self.gemini_api_key_3]
-            if key
-        ]
+        keys: list[str] = []
+        for value in [self.gemini_api_key, self.gemini_api_key_2, self.gemini_api_key_3]:
+            if not value:
+                continue
+            keys.extend([item.strip() for item in value.split(",") if item.strip()])
+        return keys
 
     @field_validator("nse_index_names", mode="before")
     @classmethod

@@ -33,6 +33,11 @@ class StockService:
         return self._select_report_stocks(near_low_stocks)
 
     def run_pipeline(self, notify: bool = True) -> PipelineRunResult:
+        logger.info(
+            "Running stock pipeline with near_52_week_low_pct=%s and top_n=%s",
+            self.settings.near_52_week_low_pct,
+            self.settings.segment_top_n,
+        )
         candidates = self._load_candidates()
         near_low_stocks = filter_candidates(candidates)
         near_low_stocks = self._enrich_stocks_with_pe(near_low_stocks)
