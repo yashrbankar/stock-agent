@@ -1,15 +1,14 @@
 import logging
 import os
 
-from app.config import get_settings
 from app.analysis.gemini_client import GeminiAnalyzer
+from app.config import get_settings
 from app.data.fundamentals import FundamentalsClient
 from app.data.models import PipelineRunResult, StockSnapshot
 from app.data.nse_client import NSEClient
 from app.filters.rules import filter_candidates, select_near_low_stocks
 from app.notification.emailer import EmailNotifier
 from app.notification.whatsapp import WhatsAppNotifier
-
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,13 @@ class StockService:
         filtered = filter_candidates(shortlist)
 
         analyses: list = []
-        summary = self._build_summary(candidates, shortlist, filtered, near_low_5_pct, near_low_10_pct)
+        summary = self._build_summary(
+            candidates,
+            shortlist,
+            filtered,
+            near_low_5_pct,
+            near_low_10_pct,
+        )
         gemini_failed = False
         gemini_failure_reason = ""
         if filtered:
@@ -54,13 +59,17 @@ class StockService:
                 analyses = []
                 for batch in _chunked(filtered, self.settings.gemini_batch_size):
                     analyses.extend(self.analyzer.analyze_batch(batch))
-                analysis_summary = self.analyzer.summarize(analyses) if analyses else "No qualifying stocks today."
+                analysis_summary = (
+                    self.analyzer.summarize(analyses) if analyses else "No qualifying stocks today."
+                )
                 summary = f"{summary}\n\nFiltered stock summary\n{analysis_summary}"
             except Exception as exc:
                 gemini_failed = True
                 gemini_failure_reason = str(exc)
                 summary = f"{summary}\n\nGemini analysis is not available right now."
-                logger.exception("Gemini analysis failed. Falling back to near-low stock lists only.")
+                logger.exception(
+                    "Gemini analysis failed. Falling back to near-low stock lists only."
+                )
 
         result = PipelineRunResult(
             candidates=candidates,
@@ -107,17 +116,33 @@ class StockService:
             f"Revision: {os.getenv('GITHUB_SHA', 'local')[:7]}",
             f"Universe: {self.settings.nse_index_name}",
             f"Candidates scanned: {len(result.candidates)}",
-            f"Stocks within 10% of 52-week low: {len(result.near_low_5_pct) + len(result.near_low_10_pct)}",
+            (
+                "Stocks within 10% of 52-week low: "
+                f"{len(result.near_low_5_pct) + len(result.near_low_10_pct)}"
+            ),
             f"Best stocks after filters: {len(result.filtered)}",
             "",
             "Screen Rules",
             "-" * 72,
             "- Full universe is scanned",
-            f"- Shortlist includes stocks within 0% to {self.settings.bucket_2_near_wkl_pct:.1f}% of 52-week low",
-            f"- PE < {self.settings.filter_max_pe}",
-            f"- PB < {self.settings.filter_max_pb}",
-            f"- Debt/Equity < {self.settings.filter_max_debt_to_equity}",
-            f"- 30-day change < {self.settings.filter_max_30d_change * 100:.1f}%",
+            (
+                "- Shortlist includes stocks within 0% to "
+                f"{self.settings.bucket_2_near_wkl_pct:.1f}% of 52-week low"
+            ),
+            "- NSE market-data fields are the primary source",
+            (
+                "- 30-day change must be below "
+                f"{self.settings.filter_max_30d_change * 100:.1f}% when available"
+            ),
+            (
+                "- 365-day change must stay above "
+                f"{self.settings.filter_min_365d_change * 100:.1f}% when available"
+            ),
+            (
+                "- Traded value must be at least Rs "
+                f"{self.settings.filter_min_traded_value_cr:.1f} Cr when available"
+            ),
+            "- Missing optional metrics are skipped instead of rejecting the stock",
             "",
             "Summary",
             "-" * 72,
@@ -169,7 +194,12 @@ class StockService:
 
         return "\n".join(lines)
 
-    def _render_stock_list(self, stocks: list[StockSnapshot], *, include_metrics: bool = False) -> str:
+    def _render_stock_list(
+        self,
+        stocks: list[StockSnapshot],
+        *,
+        include_metrics: bool = False,
+    ) -> str:
         if not stocks:
             return "No stocks in this section."
 
@@ -182,11 +212,13 @@ class StockService:
             )
             if include_metrics:
                 line += (
-                    f" | PE {self._fmt_number(stock.pe)}"
-                    f" | PB {self._fmt_number(stock.pb)}"
-                    f" | Debt/Equity {self._fmt_number(stock.debt_to_equity)}"
                     f" | 30d {self._fmt_percent(stock.thirty_day_change)}"
+                    f" | 365d {self._fmt_percent(stock.one_year_change)}"
+                    f" | Traded {self._fmt_crore(stock.traded_value)}"
+                    f" | Industry {stock.industry or 'N/A'}"
                 )
+            elif stock.industry:
+                line += f" | {stock.industry}"
             lines.append(line)
         return "\n".join(lines)
 
@@ -196,8 +228,8 @@ class StockService:
     def _fmt_percent(self, value: float | None) -> str:
         return "N/A" if value is None else f"{value * 100:.2f}%"
 
-    def _fmt_number(self, value: float | None) -> str:
-        return "N/A" if value is None else f"{value:.2f}"
+    def _fmt_crore(self, value: float | None) -> str:
+        return "N/A" if value is None else f"{value / 10_000_000:.2f} Cr"
 
     def _build_summary(
         self,
@@ -217,7 +249,9 @@ class StockService:
             f"- Passed all filters: {len(filtered)}",
         ]
         if filtered:
-            lines.append(f"- Best stocks today: {', '.join(stock.symbol for stock in filtered[:15])}")
+            lines.append(
+                f"- Best stocks today: {', '.join(stock.symbol for stock in filtered[:15])}"
+            )
         else:
             lines.append("- Best stocks today: None")
         return "\n".join(lines)

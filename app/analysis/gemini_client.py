@@ -8,7 +8,6 @@ from app.analysis.prompt_loader import load_prompt, render_prompt
 from app.config import get_settings
 from app.data.models import AnalysisResult, StockSnapshot
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -54,7 +53,9 @@ class GeminiAnalyzer:
             )
             results = _parse_batch_results(text, stocks)
             last_results = results
-            if len(results) == len(stocks) and all(_is_analysis_usable(result) for result in results):
+            if len(results) == len(stocks) and all(
+                _is_analysis_usable(result) for result in results
+            ):
                 return results
 
             logger.warning(
@@ -191,15 +192,20 @@ def _stock_payload(stock: StockSnapshot) -> dict[str, str]:
     return {
         "symbol": stock.symbol,
         "company_name": stock.company_name,
+        "industry": stock.industry or "N/A",
         "price": _fmt(stock.price),
         "fifty_two_week_low": _fmt(stock.fifty_two_week_low),
         "near_wkl_pct": _fmt_pct(stock.near_wkl_pct),
-        "pe": _fmt(stock.pe),
-        "pb": _fmt(stock.pb),
-        "debt_to_equity": _fmt(stock.debt_to_equity),
+        "day_change": _fmt_pct(stock.day_change),
         "per_change_30d": _fmt_pct(stock.thirty_day_change),
-        "market_cap": _fmt(stock.market_cap),
+        "per_change_365d": _fmt_pct(stock.one_year_change),
+        "traded_value_cr": _fmt_cr(stock.traded_value),
+        "traded_volume": _fmt(stock.traded_volume),
     }
+
+
+def _fmt_cr(value: float | None) -> str:
+    return "N/A" if value is None else f"{value / 10_000_000:.2f}"
 
 
 def _fallback_analysis(stock: StockSnapshot, raw_text: str) -> AnalysisResult:

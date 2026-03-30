@@ -4,7 +4,6 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -25,15 +24,13 @@ class Settings(BaseSettings):
     gemini_batch_size: int = Field(default=5, ge=1, le=5)
 
     nse_index_name: str = "NIFTY TOTAL MARKET"
-    lookback_days: int = 370
     filter_near_wkl_pct: float = 5.0
     bucket_1_near_wkl_pct: float = 5.0
     bucket_2_near_wkl_pct: float = 10.0
     bucket_3_near_wkl_pct: float = 20.0
-    filter_max_pe: float = 25.0
-    filter_max_pb: float = 3.0
-    filter_max_debt_to_equity: float = 1.0
     filter_max_30d_change: float = -0.01
+    filter_min_365d_change: float = -0.35
+    filter_min_traded_value_cr: float = 10.0
 
     smtp_host: str = ""
     smtp_port: int = 587
@@ -56,7 +53,11 @@ class Settings(BaseSettings):
 
     @property
     def gemini_api_keys(self) -> list[str]:
-        return [key for key in [self.gemini_api_key, self.gemini_api_key_2, self.gemini_api_key_3] if key]
+        return [
+            key
+            for key in [self.gemini_api_key, self.gemini_api_key_2, self.gemini_api_key_3]
+            if key
+        ]
 
 
 @lru_cache

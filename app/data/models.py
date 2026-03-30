@@ -6,14 +6,15 @@ from pydantic import BaseModel, Field
 class StockSnapshot(BaseModel):
     symbol: str
     company_name: str
+    industry: str | None = None
     price: float | None = None
     fifty_two_week_low: float | None = None
     near_wkl_pct: float | None = None
-    pe: float | None = None
-    pb: float | None = None
-    debt_to_equity: float | None = None
+    day_change: float | None = None
+    one_year_change: float | None = None
+    traded_value: float | None = None
+    traded_volume: float | None = None
     thirty_day_change: float | None = None
-    market_cap: float | None = None
     source_meta: dict[str, Any] = Field(default_factory=dict)
 
 

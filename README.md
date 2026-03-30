@@ -1,8 +1,8 @@
 # Stock Bot
 
-A modular FastAPI service that screens NSE stocks near their 52-week lows, enriches them with
-fundamentals from Yahoo Finance, analyzes shortlisted names with Gemini plus Google Search
-grounding, and sends a formatted report by email.
+A modular FastAPI service that screens NSE stocks near their 52-week lows using NSE market data,
+analyzes shortlisted names with Gemini plus Google Search grounding, and sends a formatted report
+by email.
 
 ## Features
 
@@ -93,6 +93,14 @@ This repo includes a GitHub Actions automation at `.github/workflows/daily-stock
 Required GitHub repository secret:
 
 - `ENV_FILE`: the full contents of your production `.env` file
+
+## Screening Logic
+
+- Scans the configured NSE universe
+- Shortlists stocks within the configured distance from their 52-week low
+- Prioritizes names with weak recent price action, acceptable 1-year drawdown, and sufficient liquidity
+- Skips any optional metric that is not present instead of rejecting the stock
+- Sends only the strongest screened names to Gemini for deeper qualitative analysis
 
 ## Notes
 
