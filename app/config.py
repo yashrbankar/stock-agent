@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     smtp_username: str = ""
     smtp_password: str = ""
     email_from: str = ""
-    email_to: str = ""
+    email_to: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
     twilio_account_sid: str = ""
     twilio_auth_token: str = ""
@@ -63,9 +63,9 @@ class Settings(BaseSettings):
             keys.extend([item.strip() for item in value.split(",") if item.strip()])
         return keys
 
-    @field_validator("nse_index_names", mode="before")
+    @field_validator("nse_index_names", "email_to", mode="before")
     @classmethod
-    def _parse_nse_index_names(cls, value: str | list[str]) -> list[str]:
+    def _parse_comma_separated_list(cls, value: str | list[str]) -> list[str]:
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value

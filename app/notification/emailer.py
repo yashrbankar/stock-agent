@@ -25,10 +25,12 @@ class EmailNotifier:
             logger.info("SMTP is not fully configured; skipping email notification.")
             return
 
+        recipients = self.settings.email_to
+
         message = EmailMessage()
         message["Subject"] = subject
         message["From"] = self.settings.email_from
-        message["To"] = self.settings.email_to
+        message["To"] = ", ".join(recipients)
         message.set_content(body)
         if html_body:
             message.add_alternative(html_body, subtype="html")
@@ -38,4 +40,4 @@ class EmailNotifier:
             server.login(self.settings.smtp_username, self.settings.smtp_password)
             server.send_message(message)
 
-        logger.info("Email report sent to %s", self.settings.email_to)
+        logger.info("Email report sent to %s", recipients)
