@@ -108,7 +108,7 @@ class StockService:
             (
                 f"Final stocks shown: {len(result.near_low_stocks)} "
                 f"(within {self.settings.near_52_week_low_pct:.1f}% of 52-week low, "
-                f"positive NSE P/E only, top {self.settings.segment_top_n} by lowest P/E)"
+                f"positive NSE P/E only, top {self.settings.segment_top_n} per segment by lowest P/E)"
             ),
             "",
             "Fundamental Breakdown By Segment",
@@ -329,31 +329,37 @@ class StockService:
         ]
 
     def _select_report_stocks(self, stocks: list[StockSnapshot]) -> list[StockSnapshot]:
-        positive_pe_stocks = [
-            stock
-            for stock in stocks
-            if stock.pe_ratio is not None and stock.pe_ratio > 0
-        ]
-        positive_pe_stocks.sort(
-            key=lambda stock: (
-                stock.pe_ratio if stock.pe_ratio is not None else 999999.0,
-                stock.near_wkl_pct if stock.near_wkl_pct is not None else 999999.0,
+        selected: list[StockSnapshot] = []
+        for segment_name, segment_stocks in self._group_stocks_by_segment(stocks).items():
+            positive_pe_stocks = [
+                stock
+                for stock in segment_stocks
+                if stock.pe_ratio is not None and stock.pe_ratio > 0
+            ]
+            positive_pe_stocks.sort(
+                key=lambda stock: (
+                    stock.pe_ratio if stock.pe_ratio is not None else 999999.0,
+                    stock.near_wkl_pct if stock.near_wkl_pct is not None else 999999.0,
+                )
             )
-        )
-        return positive_pe_stocks[: self.settings.segment_top_n]
+            selected.extend(positive_pe_stocks[: self.settings.segment_top_n])
+        return selected
 
     def _select_report_analyses(self, analyses: list[AnalysisResult]) -> list[AnalysisResult]:
-        positive_pe_analyses = [
-            analysis
-            for analysis in analyses
-            if analysis.pe_ratio is not None and analysis.pe_ratio > 0
-        ]
-        positive_pe_analyses.sort(
-            key=lambda analysis: analysis.pe_ratio
-            if analysis.pe_ratio is not None
-            else 999999.0
-        )
-        return positive_pe_analyses[: self.settings.segment_top_n]
+        selected: list[AnalysisResult] = []
+        for segment_name, segment_analyses in self._group_analyses_by_segment(analyses).items():
+            positive_pe_analyses = [
+                analysis
+                for analysis in segment_analyses
+                if analysis.pe_ratio is not None and analysis.pe_ratio > 0
+            ]
+            positive_pe_analyses.sort(
+                key=lambda analysis: analysis.pe_ratio
+                if analysis.pe_ratio is not None
+                else 999999.0
+            )
+            selected.extend(positive_pe_analyses[: self.settings.segment_top_n])
+        return selected
 
     def _group_stocks_by_segment(self, stocks: list[StockSnapshot]) -> dict[str, list[StockSnapshot]]:
         grouped: dict[str, list[StockSnapshot]] = {}
