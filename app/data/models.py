@@ -29,5 +29,6 @@ class PipelineRunResult(BaseModel):
     scanned_count: int
     near_low_stocks: list[StockSnapshot]
     analyses: list[AnalysisResult]
+    market_news: str | None = None
     gemini_failed: bool = False
     gemini_failure_reason: str = ""

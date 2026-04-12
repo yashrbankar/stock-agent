@@ -46,8 +46,10 @@ class StockService:
         analyses: list = []
         gemini_failed = False
         gemini_failure_reason = ""
+        market_news: str | None = None
         if near_low_stocks:
             try:
+                market_news = self.analyzer.analyze_market_news()
                 analyses = []
                 for batch in _chunked(near_low_stocks, self.settings.gemini_batch_size):
                     analyses.extend(self.analyzer.analyze_batch(batch))
@@ -63,6 +65,7 @@ class StockService:
             scanned_count=len(candidates),
             near_low_stocks=near_low_stocks,
             analyses=analyses,
+            market_news=market_news,
             gemini_failed=gemini_failed,
             gemini_failure_reason=gemini_failure_reason,
         )
@@ -111,9 +114,28 @@ class StockService:
                 f"positive NSE P/E only, top {self.settings.segment_top_n} per segment by lowest P/E)"
             ),
             "",
-            "Fundamental Breakdown By Segment",
-            "-" * 72,
         ]
+
+        if result.market_news:
+            lines.extend(
+                [
+                    "Market Hot Topics & News",
+                    "-" * 72,
+                    result.market_news,
+                    "",
+                ]
+            )
+
+        lines.extend(
+            [
+                "Stocks By Segment",
+                "-" * 72,
+                self._render_segmented_stock_list(result.near_low_stocks),
+                "",
+                "Fundamental Breakdown By Segment",
+                "-" * 72,
+            ]
+        )
 
         if result.gemini_failed:
             lines.extend(
@@ -129,15 +151,6 @@ class StockService:
             lines.append("No Gemini analyses were produced for this run.")
         else:
             lines.extend(self._render_segmented_analysis_sections(result.analyses))
-
-        lines.extend(
-            [
-                "",
-                "Stocks By Segment",
-                "-" * 72,
-                self._render_segmented_stock_list(result.near_low_stocks),
-            ]
-        )
 
         return "\n".join(lines)
 
@@ -200,6 +213,15 @@ class StockService:
             stock_sections_html = "<p class='empty'>No stocks in this section.</p>"
         analysis_sections_html = "".join(analysis_sections)
 
+        market_news_html = ""
+        if result.market_news:
+            market_news_html = (
+                 "<section class='segment'>"
+                 "<h2>Market Hot Topics & News</h2>"
+                 f"<div class='analysis-card'><pre style='white-space: pre-wrap; font-family: inherit; margin: 0;'>{escape(result.market_news)}</pre></div>"
+                 "</section>"
+            )
+
         return (
             "<!DOCTYPE html>"
             "<html><head><meta charset='utf-8'>"
@@ -238,11 +260,12 @@ class StockService:
             f"{self._render_meta_card('Final Stocks Shown', str(len(result.near_low_stocks)))}"
             f"{self._render_meta_card('Rule', rule_text)}"
             "</div>"
+            f"{market_news_html}"
+            "<h2>Stocks By Segment</h2>"
+            f"{stock_sections_html}"
             "<h2>Fundamental Breakdown By Segment</h2>"
             f"{gemini_status}"
             f"{analysis_sections_html}"
-            "<h2>Stocks By Segment</h2>"
-            f"{stock_sections_html}"
             "</div></body></html>"
         )
 

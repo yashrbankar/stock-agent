@@ -1,0 +1,8 @@
+Scan top news articles and identify the hot topics for the Indian stock market today.
+Important parameters to consider:
+- Are there any wars, geopolitical tensions, or international conflicts happening currently? If so, what is the impact on the Indian market?
+- Major macroeconomic news (e.g., inflation, interest rates, RBI announcements).
+- Any significant sector-specific news or major company developments.
+
+Provide a clear and concise analysis of these hot topics and how they might impact the Indian stock market before the market opens.
+Format your output as simple markdown text. Use bullet points and headers for readability. Do not output JSON.

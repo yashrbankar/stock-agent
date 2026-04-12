@@ -67,6 +67,22 @@ class GeminiAnalyzer:
         assert last_results is not None
         return last_results
 
+    def analyze_market_news(self) -> str:
+        if not self.clients:
+            return "No Gemini API key is configured. Cannot fetch market news."
+
+        system_instruction = load_prompt("system_prompt")
+        prompt = load_prompt("market_news_prompt")
+
+        try:
+            return self._generate_text(
+                prompt=prompt,
+                system_instruction=system_instruction,
+            )
+        except Exception as exc:
+            logger.exception("Failed to analyze market news")
+            return f"Could not analyze market news: {exc}"
+
     def _generate_text(self, *, prompt: str, system_instruction: str) -> str:
         last_error: Exception | None = None
 
