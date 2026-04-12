@@ -1,8 +1,12 @@
-Scan top news articles and identify the hot topics for the Indian stock market today.
-Important parameters to consider:
-- Are there any wars, geopolitical tensions, or international conflicts happening currently? If so, what is the impact on the Indian market?
-- Major macroeconomic news (e.g., inflation, interest rates, RBI announcements).
-- Any significant sector-specific news or major company developments.
+Use your search tool to heavily scan top 5 to 10 trusted financial news websites (e.g., LiveMint, MoneyControl, Economic Times, Bloomberg, Reuters, etc.) to gather the absolute latest updates and hot topics for the Indian stock market today. We are relying entirely on the search tool to get the most recent, factual information.
 
-Provide a clear and concise analysis of these hot topics and how they might impact the Indian stock market before the market opens.
-Format your output as simple markdown text. Use bullet points and headers for readability. Do not output JSON.
+Format your output as highly structured markdown using headers and bullet points. Do not output JSON.
+
+Important guidelines for your analysis:
+
+1. **Geopolitical Tensions & Global Conflicts**: Search for active tensions or conflicts (e.g., ongoing wars, crude oil impacts) and explain their potential impact on the Indian market.
+2. **Major Macroeconomic News**: Look for updates on inflation, RBI announcements, or interest rates. CRITICAL: ONLY include this section if there is actual, significant, and recent news. If there is no specific new development on inflation or macro topics today, DO NOT print this section at all.
+3. **Sector & Company News**: Mention any significant company developments, earnings, or sector-specific shifts.
+4. **US Global Indexes Performance**: You MUST include a dedicated section on major US indexes (specifically NASDAQ, S&P 500, and Dow Jones). Search for how they performed in their most recent trading session (growth or decline). Concisely analyze how this US market performance is expected to impact the Indian stock market today.
+
+Provide a clear, highly structured analysis. Keep it practical and direct.

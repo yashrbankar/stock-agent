@@ -2,10 +2,11 @@ from app.config import get_settings
 from app.data.models import StockSnapshot
 
 
-def filter_candidates(stocks: list[StockSnapshot]) -> list[StockSnapshot]:
+def filter_candidates(stocks: list[StockSnapshot], override_pct: float | None = None) -> list[StockSnapshot]:
     """Keep only stocks that are near their 52-week low."""
     settings = get_settings()
-    max_near_low = _as_ratio(settings.near_52_week_low_pct)
+    pct = override_pct if override_pct is not None else settings.near_52_week_low_pct
+    max_near_low = _as_ratio(pct)
     filtered = [
         stock
         for stock in stocks
