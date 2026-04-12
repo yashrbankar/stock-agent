@@ -227,10 +227,11 @@ class StockService:
 
         market_news_html = ""
         if result.market_news:
+            clean_news = escape(result.market_news).replace("#", "").replace("*", "")
             market_news_html = (
                  "<section class='segment'>"
                  "<h2>Market Hot Topics & News</h2>"
-                 f"<div class='analysis-card'><pre style='white-space: pre-wrap; font-family: inherit; margin: 0;'>{escape(result.market_news)}</pre></div>"
+                 f"<div class='analysis-card'><pre style='white-space: pre-wrap; font-family: inherit; margin: 0;'>{clean_news}</pre></div>"
                  "</section>"
             )
 
