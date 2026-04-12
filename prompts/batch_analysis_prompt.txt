@@ -9,13 +9,14 @@ Each array item must use this schema:
     "profitability_view": "mention return on capital / return ratios if known and year-on-year profit trend in simple English",
     "shareholding_view": "mention promoter / FII / DII / public holding pattern in simple English",
     "key_points": ["point 1", "point 2", "point 3"],
-    "risks": ["risk 1", "risk 2", "risk 3"],
+    "risks": ["major risk 1", "major risk 2", "major risk 3", "major risk 4"],
   }}
 ]
 
 Use public-web information when needed.
 It is okay to use older or approximate information when exact latest values are not available.
 Focus on giving a practical fundamental breakdown, not trading advice.
+Focus heavily on evaluating risk factors. Ensure you provide at least 3-4 significant, specific risks the company is currently facing or could face. Do not miss highlighting major risks.
 For each stock, try to cover PE, PB, industry valuation context, return ratios, face value, year-on-year profit direction, and shareholder pattern.
 If an exact number is not available, say "approximate" or "not clearly available" instead of making up precision.
 Do not ask follow-up questions.

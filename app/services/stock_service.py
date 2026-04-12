@@ -111,7 +111,7 @@ class StockService:
             (
                 f"Final stocks shown: {len(result.near_low_stocks)} "
                 f"(within {self.settings.near_52_week_low_pct:.1f}% of 52-week low, "
-                f"positive NSE P/E only, top {self.settings.segment_top_n} per segment by lowest P/E)"
+                f"NSE P/E between 0 and 25, top {self.settings.segment_top_n} per segment by lowest P/E)"
             ),
             "",
         ]
@@ -206,7 +206,7 @@ class StockService:
 
         rule_text = (
             f"Within {self.settings.near_52_week_low_pct:.1f}% of 52-week low, "
-            f"positive NSE P/E only, top {self.settings.segment_top_n} by lowest P/E"
+            f"NSE P/E between 0 and 25, top {self.settings.segment_top_n} by lowest P/E"
         )
         stock_sections_html = "".join(stock_sections)
         if not stock_sections_html:
@@ -357,7 +357,7 @@ class StockService:
             positive_pe_stocks = [
                 stock
                 for stock in segment_stocks
-                if stock.pe_ratio is not None and stock.pe_ratio > 0
+                if stock.pe_ratio is not None and 0 < stock.pe_ratio <= 25
             ]
             positive_pe_stocks.sort(
                 key=lambda stock: (
@@ -374,7 +374,7 @@ class StockService:
             positive_pe_analyses = [
                 analysis
                 for analysis in segment_analyses
-                if analysis.pe_ratio is not None and analysis.pe_ratio > 0
+                if analysis.pe_ratio is not None and 0 < analysis.pe_ratio <= 25
             ]
             positive_pe_analyses.sort(
                 key=lambda analysis: analysis.pe_ratio
