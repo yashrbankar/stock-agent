@@ -81,8 +81,33 @@ Recommended production flow:
 4. Configure secrets as environment variables in Azure.
 5. Run the daily stock job outside the web container using GitHub Actions or an Azure-native scheduled job.
 
-## GitHub Actions
+## Development & Branching Practice
 
+This repository follows a strict two-branch isolation strategy to maintain stability in production automations:
+
+### 1. The `main` Branch (Development Environment)
+- Treat the `main` branch as your **local development** space. 
+- All experimental coding, prompt tweaking, debugging, and testing happens here.
+- The automated GitHub Actions pipeline will deliberately **ignore** the `main` branch to ensure that broken builds or untested code do not cause silent failures in the background schedules.
+
+### 2. The `prod` Branch (Production Environment)
+- Treat the `prod` branch strictly as your **production release** space.
+- The GitHub Actions Cron Job (`daily-stock-run.yml`) pulls directly and uniquely from the `prod` branch.
+- **NEVER** push experimental code directly to `prod`. 
+
+### How to Merge After Testing
+When you thoroughly test your changes on `main` and are ready to deploy them live, merge your code over to `prod` securely:
+
+**Via Terminal (Local Merge):**
+```bash
+git checkout prod
+git merge main
+git push origin prod
+git checkout main # return to developing
+```
+*(Alternatively, create a Pull Request on GitHub from `main` into `prod` and click merge.)*
+
+## GitHub Actions
 This repo includes a GitHub Actions automation at `.github/workflows/daily-stock-run.yml`.
 
 - It runs every day at 04:00 IST.
