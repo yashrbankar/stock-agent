@@ -30,5 +30,6 @@ class PipelineRunResult(BaseModel):
     near_low_stocks: list[StockSnapshot]
     analyses: list[AnalysisResult]
     market_news: str | None = None
+    applied_pct: float | None = None
     gemini_failed: bool = False
     gemini_failure_reason: str = ""

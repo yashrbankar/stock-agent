@@ -85,33 +85,50 @@ class GeminiAnalyzer:
 
     def _generate_text(self, *, prompt: str, system_instruction: str) -> str:
         last_error: Exception | None = None
+        max_503_retries = 3
 
         for index, client in enumerate(self.clients, start=1):
             if index in self.exhausted_client_indexes:
                 logger.info("Skipping Gemini API key #%s because it already hit quota.", index)
                 continue
 
-            try:
-                response = client.models.generate_content(
-                    model=self.settings.gemini_model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction,
-                        temperature=0.2,
-                        tools=[types.Tool(google_search=types.GoogleSearch())],
-                    ),
-                )
-                logger.info("Gemini request succeeded using API key #%s", index)
-                return response.text or ""
-            except errors.ClientError as exc:
-                last_error = exc
-                status = str(getattr(exc, "status", "")).upper()
-                message = str(getattr(exc, "message", "")).upper()
-                if _is_quota_error(status, message):
-                    self.exhausted_client_indexes.add(index)
-                    logger.warning("Gemini key #%s hit quota. Trying next key if available.", index)
-                    continue
-                raise
+            for attempt in range(max_503_retries):
+                try:
+                    response = client.models.generate_content(
+                        model=self.settings.gemini_model,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            system_instruction=system_instruction,
+                            temperature=0.2,
+                            tools=[types.Tool(google_search=types.GoogleSearch())],
+                        ),
+                    )
+                    logger.info("Gemini request succeeded using API key #%s", index)
+                    return response.text or ""
+                except (errors.ClientError, errors.ServerError) as exc:
+                    last_error = exc
+                    status = str(getattr(exc, "status", "")).upper()
+                    message = str(getattr(exc, "message", "")).upper()
+                    
+                    if "503" in str(exc) or "UNAVAILABLE" in str(exc) or "OVERLOADED" in status:
+                        if attempt < max_503_retries - 1:
+                            import time
+                            logger.warning(
+                                "Gemini overloaded (503). Retrying key #%s (Attempt %s/%s) after 5s...", 
+                                index, attempt + 1, max_503_retries
+                            )
+                            time.sleep(5)
+                            continue
+                        else:
+                            logger.warning("Gemini key #%s still overloaded after %s attempts.", index, max_503_retries)
+                            break  # Move to next API key
+
+                    if _is_quota_error(status, message):
+                        self.exhausted_client_indexes.add(index)
+                        logger.warning("Gemini key #%s hit quota. Trying next key if available.", index)
+                        break  # Move to next API key
+                    
+                    raise  # Any other unhandled error, raise immediately
 
         if last_error:
             raise last_error

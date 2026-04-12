@@ -45,13 +45,18 @@ class StockService:
             logger.exception("Failed to fetch market news")
 
         candidates = self._load_candidates()
-        near_low_stocks = filter_candidates(candidates)
+        
+        current_pct = self.settings.near_52_week_low_pct
+        max_pct = 50.0
+        
+        near_low_stocks = filter_candidates(candidates, override_pct=current_pct)
         enriched_stocks = self._enrich_stocks_with_pe(near_low_stocks)
         final_stocks = self._select_report_stocks(enriched_stocks)
 
-        if not final_stocks:
-            logger.info("No stocks found at default 5% near low. Trying 10%.")
-            near_low_stocks = filter_candidates(candidates, override_pct=10.0)
+        while len(final_stocks) < 10 and current_pct < max_pct:
+            current_pct += 5.0
+            logger.info("Fewer than 10 stocks found. Increasing threshold to %s%%", current_pct)
+            near_low_stocks = filter_candidates(candidates, override_pct=current_pct)
             enriched_stocks = self._enrich_stocks_with_pe(near_low_stocks)
             final_stocks = self._select_report_stocks(enriched_stocks)
 
@@ -78,6 +83,7 @@ class StockService:
             near_low_stocks=near_low_stocks,
             analyses=analyses,
             market_news=market_news,
+            applied_pct=current_pct,
             gemini_failed=gemini_failed,
             gemini_failure_reason=gemini_failure_reason,
         )
@@ -122,7 +128,7 @@ class StockService:
             f"Stocks scanned: {result.scanned_count}",
             (
                 f"Final stocks shown: {len(result.near_low_stocks)} "
-                f"(within 52-week low threshold (up to 10%), "
+                f"(within 52-week low threshold (dynamically scaled to {result.applied_pct}%), "
                 f"NSE P/E between 0 and 25, top {self.settings.segment_top_n} per segment by lowest P/E)"
             ),
             "",
@@ -217,7 +223,7 @@ class StockService:
             analysis_sections.append("<p class='empty'>No Gemini analyses were produced for this run.</p>")
 
         rule_text = (
-            f"Within 52-week low threshold (up to 10%), "
+            f"Within 52-week low threshold (dynamically scaled to {result.applied_pct}%), "
             f"NSE P/E between 0 and 25, top {self.settings.segment_top_n} by lowest P/E"
         )
         stock_sections_html = "".join(stock_sections)
