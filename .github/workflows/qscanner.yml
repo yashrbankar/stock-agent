@@ -19,7 +19,7 @@ jobs:
         with:
           access-token: ${{ secrets.QUALYS_ACCESS_TOKEN }}
           pod: ${{ vars.QUALYS_POD }}
-          qscanner-version: v4.6.0
+          qscanner-version: v5.2.0
           scan-command: code
           target: .
           upload-artifact: 'true'
