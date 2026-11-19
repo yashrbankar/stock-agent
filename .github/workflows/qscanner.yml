@@ -1,0 +1,23 @@
+name: QScanner
+
+on:
+  workflow_dispatch:
+
+jobs:
+  code-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: yashrbankar/random-test2@main
+        with:
+          access-token: ${{ secrets.QUALYS_ACCESS_TOKEN }}
+          pod: ${{ vars.QUALYS_POD }}
+          qscanner-version: v4.6.0
+          scan-command: code
+          target: .
+          upload-artifact: 'true'
+          fail-on-policy-deny: 'true'
